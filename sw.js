@@ -1,40 +1,29 @@
-// Service worker for Qr‑Mac
-// Caches static assets for offline use using a simple cache-first strategy
-
-const CACHE_NAME = 'qr-mac-cache-v1';
+// Simple cache-first service worker for Qr‑Mac
+const CACHE = 'qr-mac-v1';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './manifest.webmanifest',
   './icon-192.png',
-  './icon-512.png',
-  'https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
+  './icon-512.png'
 ];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k)))))
   );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      );
-    })
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (url.origin === location.origin) {
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request))
+    );
+  }
 });

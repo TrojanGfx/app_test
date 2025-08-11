@@ -2,7 +2,7 @@
 
 // Grab DOM elements
 const preview = document.getElementById('preview');
-const videoElem = preview.querySelector('video'); // <-- Χρησιμοποιούμε αυτό το video
+const videoElem = preview.querySelector('video'); // existing video
 const codesList = document.getElementById('codes');
 const startScanBtn = document.getElementById('startScan');
 const showCartBtn = document.getElementById('showCart');
@@ -11,7 +11,7 @@ const qrContainer = document.getElementById('qr-container');
 const closeBtn = fullscreen.querySelector('.close');
 
 let scanner = null;
-let permissionStream = null; // τρέχον MediaStream
+let permissionStream = null;
 let codes = [];
 
 // Load codes from localStorage on startup
@@ -20,9 +20,7 @@ function loadCodes() {
     const stored = localStorage.getItem('codes');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        codes = parsed;
-      }
+      if (Array.isArray(parsed)) codes = parsed;
     }
   } catch (e) {
     console.error('Error loading codes', e);
@@ -69,9 +67,7 @@ loadCodes();
 
 // Helper: stop and release any MediaStream tracks
 function stopStream(stream) {
-  try {
-    stream?.getTracks?.().forEach(t => t.stop());
-  } catch {}
+  try { stream?.getTracks?.().forEach(t => t.stop()); } catch {}
 }
 
 // Start or stop scanning depending on current state
@@ -97,7 +93,7 @@ startScanBtn.addEventListener('click', async () => {
   }
 
   try {
-    // Ζήτα άδεια + ξεκίνα ζωντανό preview στο ΥΠΑΡΧΟΝ video
+    // Ask permission + live preview on existing video
     permissionStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' } },
       audio: false
@@ -119,8 +115,8 @@ startScanBtn.addEventListener('click', async () => {
 
     startScanBtn.textContent = 'Stop Scan';
 
-    // Στήσε τον QrScanner πάνω στο ΙΔΙΟ video element
-    // (UMD build: window.QrScanner)
+    // Initialize QrScanner on the same video element
+    // (UMD build exposes window.QrScanner)
     scanner = new QrScanner(
       videoElem,
       (result) => {
