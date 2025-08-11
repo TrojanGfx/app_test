@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qr‑Mac</title>
+    <!-- Link to the Web App Manifest for PWA support -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <!-- Favicon for browsers -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <style>
+      /* Basic styling for the app */
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 1rem;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+      }
+      #preview {
+        width: 100%;
+        max-width: 400px;
+        margin: auto;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      .code-item {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      .code-text {
+        flex: 1;
+        overflow-x: auto;
+        font-family: monospace;
+      }
+      .code-remove {
+        margin-left: 0.5rem;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #0078d4;
+        color: #fff;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      /* Fullscreen cart overlay */
+      .fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff;
+        overflow: auto;
+        padding: 1rem;
+        z-index: 1000;
+        display: none;
+      }
+      .fullscreen .close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #ff6666;
+      }
+      .qr-img {
+        margin: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Qr‑Mac</h1>
+    <!-- Controls for starting scan and showing cart -->
+    <button id="startScan">Start Scan</button>
+    <button id="showCart">Show Cart</button>
+    <!-- Video preview for scanning -->
+    <div id="preview"></div>
+    <!-- List of scanned codes -->
+    <ul id="codes"></ul>
+    <!-- Fullscreen overlay for cart presentation -->
+    <div id="fullscreen" class="fullscreen">
+      <button class="close">Close</button>
+      <div id="qr-container"></div>
+    </div>
+    <!-- Import QR scanner and QR code generator from CDNs -->
+    <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- Main application logic -->
+    <script src="app.js"></script>
+  </body>
+</html>
