@@ -1,4 +1,4 @@
-// Main logic for Qr‑Mac
+// Main logic for Qr-Mac
 // Uses qr-scanner library to scan QR codes from the device camera
 // and uses qrious to render QR codes for the cart view.
 
@@ -12,6 +12,8 @@ const qrContainer = document.getElementById('qr-container');
 const closeBtn = fullscreen.querySelector('.close');
 
 let scanner = null;
+let videoElem = null;
+let permissionStream = null;
 let codes = [];
 
 // Load codes from localStorage on startup
@@ -46,11 +48,9 @@ function renderCodes() {
   codes.forEach((code, idx) => {
     const li = document.createElement('li');
     li.className = 'code-item';
-    // Show the text of the QR code
     const span = document.createElement('span');
     span.className = 'code-text';
     span.textContent = code;
-    // Button to remove a code from the list
     const btn = document.createElement('button');
     btn.textContent = 'Remove';
     btn.className = 'code-remove';
@@ -65,62 +65,102 @@ function renderCodes() {
   });
 }
 
-// Initialize codes from storage
 loadCodes();
+
+// Helper: stop and release any MediaStream tracks
+function stopStream(stream) {
+  try {
+    stream?.getTracks?.().forEach(t => t.stop());
+  } catch {}
+}
 
 // Start or stop scanning depending on current state
 startScanBtn.addEventListener('click', async () => {
+  // STOP
   if (scanner) {
-    // Stop scanning
-    scanner.stop();
+    try { await scanner.stop(); } catch {}
+    scanner.destroy?.();
     scanner = null;
-    startScanBtn.textContent = 'Start Scan';
+    if (videoElem) {
+      // clear preview
+      try { videoElem.srcObject = null; } catch {}
+    }
+    stopStream(permissionStream);
+    permissionStream = null;
     preview.innerHTML = '';
+    startScanBtn.textContent = 'Start Scan';
     return;
   }
-  // Check for mediaDevices support
+
+  // START
   if (!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia) {
     alert('Your device does not support camera access.');
-    startScanBtn.textContent = 'Start Scan';
     return;
   }
+
   try {
-    // Request camera permission upfront; this will show a prompt to the user if
-    // permission has not been granted yet. If denied, an exception is thrown.
-    await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-  } catch (err) {
-    console.error('Camera permission denied or not available', err);
-    alert('The app needs access to your camera. Please allow camera permission in your browser settings and try again.');
-    startScanBtn.textContent = 'Start Scan';
-    return;
-  }
-  // Create video element for scanning preview
-  const videoElem = document.createElement('video');
-  videoElem.setAttribute('autoplay', '');
-  videoElem.setAttribute('muted', '');
-  videoElem.setAttribute('playsinline', '');
-  preview.appendChild(videoElem);
-  startScanBtn.textContent = 'Stop Scan';
-  // Initialize QR scanner
-  scanner = new QrScanner(
-    videoElem,
-    (result) => {
-      // On successful scan, add new code if not already present
-      if (!codes.includes(result)) {
-        codes.push(result);
-        saveCodes();
-        renderCodes();
+    // 1) Ask for permission & show a reliable live preview immediately
+    permissionStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false
+    });
+
+    // Create video element once and attach to DOM
+    videoElem = document.createElement('video');
+    videoElem.setAttribute('autoplay', '');
+    videoElem.setAttribute('muted', '');
+    videoElem.setAttribute('playsinline', ''); // mobile inline playback
+    // give preview box some size in case CSS is missing
+    videoElem.style.width = '100%';
+    videoElem.style.display = 'block';
+    preview.appendChild(videoElem);
+
+    videoElem.srcObject = permissionStream;
+    videoElem.onloadedmetadata = () => {
+      // Some devices need an explicit play after metadata
+      videoElem.play().catch(() => {});
+    };
+
+    startScanBtn.textContent = 'Stop Scan';
+
+    // 2) Initialize QrScanner on the same <video>
+    //    (library: https://npmjs.com/package/qr-scanner — UMD build exposes QrScanner) 
+    scanner = new QrScanner(
+      videoElem,
+      (result) => {
+        // On successful scan, add new code if not already present
+        const text = typeof result === 'string' ? result : result?.data || '';
+        if (text && !codes.includes(text)) {
+          codes.push(text);
+          saveCodes();
+          renderCodes();
+        }
+      },
+      {
+        highlightScanRegion: true,
+        returnDetailedScanResult: true,
+        maxScansPerSecond: 8,
+        // preferredCamera works in newer versions; fallback is facingMode above
+        preferredCamera: 'environment'
       }
-    },
-    { highlightScanRegion: true }
-  );
-  try {
-    await scanner.start();
-  } catch (e) {
-    console.error('Failed to start scanner', e);
-    startScanBtn.textContent = 'Start Scan';
-    preview.innerHTML = '';
+    );
+
+    // 3) Start the scanner (it may override the stream; that’s OK)
+    await scanner.start().catch(err => {
+      console.error('Scanner start failed:', err);
+      throw err;
+    });
+
+  } catch (err) {
+    console.error('Camera permission/start failed', err);
+    alert('Cannot access camera. Check browser permissions and try again.');
+    // cleanup
+    try { scanner?.destroy?.(); } catch {}
     scanner = null;
+    stopStream(permissionStream);
+    permissionStream = null;
+    preview.innerHTML = '';
+    startScanBtn.textContent = 'Start Scan';
   }
 });
 
