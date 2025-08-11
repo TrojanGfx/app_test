@@ -1,9 +1,8 @@
-// Main logic for Qr-Mac
-// Uses qr-scanner library to scan QR codes from the device camera
-// and uses qrious to render QR codes for the cart view.
+// Main logic for Qr-Mac (uses existing <video> inside #preview)
 
 // Grab DOM elements
 const preview = document.getElementById('preview');
+const videoElem = preview.querySelector('video'); // <-- Χρησιμοποιούμε αυτό το video
 const codesList = document.getElementById('codes');
 const startScanBtn = document.getElementById('startScan');
 const showCartBtn = document.getElementById('showCart');
@@ -12,8 +11,7 @@ const qrContainer = document.getElementById('qr-container');
 const closeBtn = fullscreen.querySelector('.close');
 
 let scanner = null;
-let videoElem = null;
-let permissionStream = null;
+let permissionStream = null; // τρέχον MediaStream
 let codes = [];
 
 // Load codes from localStorage on startup
@@ -21,16 +19,15 @@ function loadCodes() {
   try {
     const stored = localStorage.getItem('codes');
     if (stored) {
-      codes = JSON.parse(stored);
-      if (Array.isArray(codes)) {
-        renderCodes();
-      } else {
-        codes = [];
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        codes = parsed;
       }
     }
   } catch (e) {
     console.error('Error loading codes', e);
   }
+  renderCodes();
 }
 
 // Persist codes array to localStorage
@@ -48,9 +45,11 @@ function renderCodes() {
   codes.forEach((code, idx) => {
     const li = document.createElement('li');
     li.className = 'code-item';
+
     const span = document.createElement('span');
     span.className = 'code-text';
     span.textContent = code;
+
     const btn = document.createElement('button');
     btn.textContent = 'Remove';
     btn.className = 'code-remove';
@@ -59,6 +58,7 @@ function renderCodes() {
       saveCodes();
       renderCodes();
     });
+
     li.appendChild(span);
     li.appendChild(btn);
     codesList.appendChild(li);
@@ -81,13 +81,11 @@ startScanBtn.addEventListener('click', async () => {
     try { await scanner.stop(); } catch {}
     scanner.destroy?.();
     scanner = null;
-    if (videoElem) {
-      // clear preview
-      try { videoElem.srcObject = null; } catch {}
-    }
+
+    try { videoElem.srcObject = null; } catch {}
     stopStream(permissionStream);
     permissionStream = null;
-    preview.innerHTML = '';
+
     startScanBtn.textContent = 'Start Scan';
     return;
   }
@@ -99,36 +97,33 @@ startScanBtn.addEventListener('click', async () => {
   }
 
   try {
-    // 1) Ask for permission & show a reliable live preview immediately
+    // Ζήτα άδεια + ξεκίνα ζωντανό preview στο ΥΠΑΡΧΟΝ video
     permissionStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' } },
       audio: false
     });
 
-    // Create video element once and attach to DOM
-    videoElem = document.createElement('video');
     videoElem.setAttribute('autoplay', '');
     videoElem.setAttribute('muted', '');
-    videoElem.setAttribute('playsinline', ''); // mobile inline playback
-    // give preview box some size in case CSS is missing
+    videoElem.setAttribute('playsinline', '');
     videoElem.style.width = '100%';
     videoElem.style.display = 'block';
-    preview.appendChild(videoElem);
 
     videoElem.srcObject = permissionStream;
-    videoElem.onloadedmetadata = () => {
-      // Some devices need an explicit play after metadata
-      videoElem.play().catch(() => {});
-    };
+    await new Promise(res => {
+      videoElem.onloadedmetadata = () => {
+        videoElem.play().catch(() => {});
+        res();
+      };
+    });
 
     startScanBtn.textContent = 'Stop Scan';
 
-    // 2) Initialize QrScanner on the same <video>
-    //    (library: https://npmjs.com/package/qr-scanner — UMD build exposes QrScanner) 
+    // Στήσε τον QrScanner πάνω στο ΙΔΙΟ video element
+    // (UMD build: window.QrScanner)
     scanner = new QrScanner(
       videoElem,
       (result) => {
-        // On successful scan, add new code if not already present
         const text = typeof result === 'string' ? result : result?.data || '';
         if (text && !codes.includes(text)) {
           codes.push(text);
@@ -140,12 +135,10 @@ startScanBtn.addEventListener('click', async () => {
         highlightScanRegion: true,
         returnDetailedScanResult: true,
         maxScansPerSecond: 8,
-        // preferredCamera works in newer versions; fallback is facingMode above
         preferredCamera: 'environment'
       }
     );
 
-    // 3) Start the scanner (it may override the stream; that’s OK)
     await scanner.start().catch(err => {
       console.error('Scanner start failed:', err);
       throw err;
@@ -154,12 +147,14 @@ startScanBtn.addEventListener('click', async () => {
   } catch (err) {
     console.error('Camera permission/start failed', err);
     alert('Cannot access camera. Check browser permissions and try again.');
-    // cleanup
+
     try { scanner?.destroy?.(); } catch {}
     scanner = null;
+
+    try { videoElem.srcObject = null; } catch {}
     stopStream(permissionStream);
     permissionStream = null;
-    preview.innerHTML = '';
+
     startScanBtn.textContent = 'Start Scan';
   }
 });
