@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Qr‑Mac</title>
+    <title>Qr-Mac</title>
     <!-- Link to the Web App Manifest for PWA support -->
     <link rel="manifest" href="manifest.webmanifest" />
     <!-- Favicon for browsers -->
@@ -25,6 +25,15 @@
         width: 100%;
         max-width: 400px;
         margin: auto;
+        background: #000; /* so preview area is visible */
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      /* Ensure the video fills the preview container */
+      #preview video {
+        width: 100%;
+        height: auto;
+        display: block;
       }
       ul {
         list-style: none;
@@ -86,22 +95,30 @@
     </style>
   </head>
   <body>
-    <h1>Qr‑Mac</h1>
+    <h1>Qr-Mac</h1>
     <!-- Controls for starting scan and showing cart -->
     <button id="startScan">Start Scan</button>
     <button id="showCart">Show Cart</button>
+
     <!-- Video preview for scanning -->
-    <div id="preview"></div>
+    <div id="preview">
+      <!-- Optional placeholder video element -->
+      <video autoplay muted playsinline></video>
+    </div>
+
     <!-- List of scanned codes -->
     <ul id="codes"></ul>
+
     <!-- Fullscreen overlay for cart presentation -->
     <div id="fullscreen" class="fullscreen">
       <button class="close">Close</button>
       <div id="qr-container"></div>
     </div>
+
     <!-- Import QR scanner and QR code generator from CDNs -->
     <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
     <!-- Main application logic -->
     <script src="app.js"></script>
   </body>
